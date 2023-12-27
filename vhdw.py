@@ -1,19 +1,47 @@
+import argparse
+import sys
+import os.path as op  
+
 import vhd
 
-test_vhd = "/home/lyt0628/dev/CODE/vhdw/test.vhd"
-orange_vhd = "/home/lyt0628/dev/CODE/vhdw/ORANGE.vhd"
-FIX_vhd =  "/home/lyt0628/VirtualBox VMs/FIX_VHD2/FIX_VHD2.vhd"
 
-bin_path = "/home/lyt0628/dev/CODE/vhdw/hello2.bin"
-FIX_TEST = "/home/lyt0628/dev/CODE/vhdw/FIX_VHD2.vhd"
-def main():
-  img = vhd.newVHD(FIX_TEST)
+
+
+def do_write(src, dest, lba):
+  if not op.exists(src):
+    raise ValueError("source file cannot not exist!!!")
+  if not op.exists(dest):
+    ans = input("warning: dest file is not exits. want to create ?[y/n]")
+    if ans is 'n':
+        exit(0)
+
+  img = vhd.newVHD(dest)
   content = None
-  with open (bin_path, 'rb') as f:
+  with open (src, 'rb') as f:
     content = f.read()
 
-  img.write(src=content,lba=0)
+  img.write(src=content, lba=lba)
   print(img.footer.cookie)
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        prog="Vhdw",
+        description="Vhdw is command line tool to write binary content to VHD format file.",
+        epilog="Good luck."
+  )
+
+    parser.add_argument('-s', '--src', help="the source file will be written to vhd file")
+    parser.add_argument('-d', '--dest', help="dest vhd file will be written")
+    parser.add_argument('-n', '--number', default=0, 
+                        help=' the beginning logic sector number(LBA) of dest location') 
+
+    args = parser.parse_args()
+    return args
+
 if __name__ == "__main__":
-  main()
+  args = parse_args()
+  
+  do_write(src=args.src, 
+           dest=args.dest,
+           lba=args.number)
+  

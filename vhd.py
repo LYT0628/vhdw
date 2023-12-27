@@ -1,4 +1,4 @@
-import garbage.constant as constant
+
 from enum import Enum
 
 class Feature(Enum):
