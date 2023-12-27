@@ -2,26 +2,30 @@ import garbage.constant as constant
 from enum import Enum
 
 class Feature(Enum):
+  """"""
   NoFeature = b'\x00\x00\x00\x00'
   Temporary = b'\x00\x00\x00\x01'
   Reserved = b'\x00\x00\x00\x02'
 
 class OS(Enum):
+  """"""
   WIN = b'Wi2k'
   MAC = b'Mac'
 
 class DiskType(Enum):
+  """"""
   None_ = b'\x00\x00\x00\x00'
   Fixed = b'\x00\x00\x00\x02'
   Dynamic = b'\x00\x00\x00\x03'
   Differencing = b'\x00\x00\x00\x04'
 
-def newVHD(type="dynamic"):
-  pass
-
 
 def newVHD(vhd_path: str):
-
+  """
+  create a VHD Object by the absolute path of vhd file. 
+  if not exist, the file will be created, default fixed, 64 MB.
+  """
+  
   f = open(vhd_path, 'rb')
 
   f.seek(-512,2)
@@ -51,7 +55,9 @@ def newVHD(vhd_path: str):
   if footer.diskType() == DiskType.Fixed:
     f.close()
     return FixedVHD(vhd_path=vhd_path, footer=footer)
-  
+
+  raise NotImplementedError("The type of VHD is not supported now.")
+
   if footer.diskType() == DiskType.Dynamic:
     f.seek(512,0)
     header_area = f.read(1024)
@@ -83,20 +89,8 @@ def newVHD(vhd_path: str):
   
   raise NotImplementedError("The type of VHD is not supported now.")
 
-
-
 class Footer:
-  def __init__(self) -> None:
-    self.cookie = b'conectix'
-    self.futures = constant.bzero_b4
-    self.file_format_version = constant.bzero_b4 
-    self.data_offset = constant.bzero_b8 
-    self.timestamp = constant.bzero_b4 
-    self.creator_app = constant.bzero_b4 
-    self.creator_version = constant.bzero_b4 
-    self.creator_hostOS = constant.bzero_b4 
-    self.original_size =constant.bzero_b8 
-
+  """"""
   def __init__(self,features,file_format_version, 
                     data_offset, timestamp,
                     creator_app, creator_version, creator_hostOS,
@@ -104,6 +98,7 @@ class Footer:
                     cylinder,heads, sectors,
                     disk_type, checksum,uuid_,
                     saved_state ,cookie=b'conectix', reserved = 0) -> None:
+
     self.cookie = cookie
     self.futures = features
     self.file_format_version = file_format_version
@@ -122,42 +117,50 @@ class Footer:
     self.uuid = uuid_ 
     self.saved_state = saved_state
     self.reserved = reserved
-
+  """"""
+  
   def diskType(self):
-    if self.disk_type is None:
-      raise ValueError
     return DiskType(self.disk_type)
 
-
 class FixedVHD:
+  """"""
   def __init__(self, vhd_path: str, footer: Footer) -> None:
     self._vhd_path = vhd_path # 需要时再打开， data=content[0:-512]
     self.footer:Footer = footer
+  """"""
+  def _write(self, content: bytes, lba: int):
+    if self.footer.saved_state == 1:
+      return 0
+    original_content = bytearray(self.content)
+
+    n  = 0
+    for  b in content:
+      original_content[512 * lba + n ] = b 
+      n += 1
+
+    with open(self._vhd_path, 'wb' )as f:
+      n = f.write(original_content)
+    return n 
+  """"""
+  def write(self, src, lba: int):
+    content = None
+    if type(src) is bytes:
+      content = src
+    if type(src) is str:
+      with open(src, 'rb') as f: 
+        content = f.read() 
+
+    self._write(content, lba)
+  
+
+  @property    
+  def content(self):
+    """"""
+    with open(self._vhd_path, 'rb') as f:
+      return f.read()
 
 class Header:
-  def __init__(self) -> None:
-    self.footer = None 
-    self.cookie = b'cxsparse'
-    self.data_offset = constant.f_b8
-    self.table_offset = constant.bzero_b8
-    self.header_version = constant.bzero_b4
-    self.max_table_entry = constant.bzero_b4
-    self.block_size = constant.bzero_b4
-    self.checksum = constant.bzero_b4
-    self.parent_uuid = constant.bzero_b16 
-    self.parent_timestamp = constant.bzero_b4 
-    self.reserved1 = constant.bzero_b4 
-    self.parent_unicode_name = constant.bzero_b512
-    self.parent_locator_entry1 = constant.bzero_b24
-    self.parent_locator_entry2 = constant.bzero_b24
-    self.parent_locator_entry3 = constant.bzero_b24
-    self.parent_locator_entry4 = constant.bzero_b24
-    self.parent_locator_entry5 = constant.bzero_b24
-    self.parent_locator_entry6 = constant.bzero_b24
-    self.parent_locator_entry7 = constant.bzero_b24
-    self.parent_locator_entry8 = constant.bzero_b24
-    self.reserved2 = constant.bzero_b256    
-
+  """"""
   def __init__(self,data_offset = None, table_offset = None,
                     header_version = None, max_table_entry = None,
                     block_size = None, checksum = None, 
@@ -194,17 +197,9 @@ class Header:
     self.parent_locator_entry8 = parent_locator_entry8
     self.reserved2 = reserved2
 
-
-
 class DynamicVHD:
-  def __init__(self) -> None:
-    self.header = None 
-    self.footer = None
-    self.block_allocation_table =None
-    self.blocks = []
-
-
-  def __init__(self ,  header: Header, footer: Footer, 
+  """"""
+  def __init__(self , header: Header, footer: Footer, 
                       vhd_path: str) -> None:
     self.header = header 
     self.footer = footer
